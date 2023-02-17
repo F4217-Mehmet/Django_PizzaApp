@@ -116,8 +116,6 @@ ekliyorum
 
 {% load static %}
 
-
-    <!-- navabar start -->
     <nav class="navbar navbar-expand-lg navbar navbar-white">
         <div class="container-fluid ">
             <a class="navbar-brand alert-warning" href="/">
@@ -139,3 +137,73 @@ ekliyorum
                 </ul>
             </div>
     </nav>
+
+9. AuthenTication işlemlerine başlıyorum(**login, logout, register**)
+**users** app'i oluşturuyorum ve settings.py'da installed apps kısmına ekliyorum
+
+**main url'de** yönlendirme yapıyorum
+
+urlpatterns = [
+    ...,
+    ...,
+    path('users/', include('users.urls')),
+]
+
+**users/urls.py** ekliyorum
+
+from django.urls import path
+from .views import register, user_login, user_logout
+
+urlpatterns = [
+    path("register/", register, name="register"),
+    path("login/", user_login, name="user_login"),
+    path("logout/", user_logout, name="user_logout"),
+]
+
+**register'dan** başlayacağım, register view'ini views.py'a ekliyorum
+
+def register(request):
+    # form = UserCreationForm()
+    form = UserForm()
+    
+    if request.method == 'POST':
+        # form = UserCreationForm(request.POST)
+        form = UserForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            
+            # username = form.cleaned_data.get("username")
+            # password = form.cleaned_data.get("password2")
+            # user = authenticate(username=username, password=password)
+            # login(request, user)
+            
+            return redirect('home')
+            
+    context = {
+        "form": form
+    }
+    return render(request,'users/register.html', context)
+
+**users/templates/users** klasörü oluşturuyorum. bunun altında **register.html** dosyası ekliyorum, navbara da register linki ekledim
+
+{% extends 'pizzas/base.html' %}
+
+
+{% block content %}
+<div class="col-lg-4 mx-auto p-0 shadow mt-5">
+    <div class="alert alert-warning text-center p-1">
+        <h2>Registration</h2>
+    </div>
+    <div class="p-4 d-flex align-items-center ">
+        <form action="" method="POST">
+            {% csrf_token %} 
+            {{ form }}
+            <hr>
+            <input type="submit" value="Register" class="btn btn-success">
+        </form>
+    </div>
+</div>
+{% endblock content %}
+
+
