@@ -360,6 +360,11 @@ kodlarını yukarıda yazdım, **style.css'de** de mesajların şeklini düzenle
 }
 **mesajlar otomatik olarak belirli bir süre sonra kaybolsun istiyorum, bunu da JS ile yapıyorum.**
 
+
+**base.html'e js tagi ekliyorum**
+
+<script src="{% static 'js/timeout.js' %}"></script>
+
 **static/js**
 let element = document.querySelector('.message');
 
