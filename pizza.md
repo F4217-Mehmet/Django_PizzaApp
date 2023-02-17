@@ -160,12 +160,15 @@ urlpatterns = [
     path("logout/", user_logout, name="user_logout"),
 ]
 
-**register'dan** başlayacağım, register view'ini views.py'a ekliyorum
+10. **register'dan** başlayacağım, register view'ini views.py'a ekliyorum
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.forms import UserCreationForm
 
 def register(request):
     # form = UserCreationForm()
     form = UserForm()
-    
+**istek post ile form oluştur, form geçerli ise kaydet**    
     if request.method == 'POST':
         # form = UserCreationForm(request.POST)
         form = UserForm(request.POST)
@@ -179,7 +182,7 @@ def register(request):
             # login(request, user)
             
             return redirect('home')
-            
+ **formu html'ye context ile gönderiyorum**           
     context = {
         "form": form
     }
@@ -196,7 +199,10 @@ def register(request):
         <h2>Registration</h2>
     </div>
     <div class="p-4 d-flex align-items-center ">
-        <form action="" method="POST">
+
+**view'den gönderdiğim formu burada yakalıyorum**
+        <form action="" method="POST"> 
+**güvenlik açıısndan csrf (Cross-site request forgery) kullanıyorum**
             {% csrf_token %} 
             {{ form }}
             <hr>
@@ -206,4 +212,5 @@ def register(request):
 </div>
 {% endblock content %}
 
+11. djangonun hazır formu üzerinde düzenleme yapmak için **users/templates/users/forms.py** oluşturuyorum
 
