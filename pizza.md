@@ -40,7 +40,7 @@ urlpatterns = [
 
 {% block content %}
  
-
+ **login ve logout olduğunda for döngüsüyle flash şeklinde mesajlar veriyor.**
     <div class="homeImage">
         {% if messages %} 
         {% for message in messages %} 
@@ -57,6 +57,8 @@ urlpatterns = [
         
 
 {% endblock content %}
+
+style.css'de background image'i
 
 5. react'teki component mantığına benzer şekilde **pizzas/templates/pizzas/base.html** dosyası oluşturuyorum. Nasıl reactte proje **index.html** içerisinde çalışıyorsa burada da html template'leri **base.html** içerisinde belirllediğim bloklar arasında çalışacak.
 
@@ -164,10 +166,11 @@ urlpatterns = [
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
+from .forms import UserForm, LoginForm
 
 def register(request):
     # form = UserCreationForm()
-    form = UserForm()
+    form = UserForm() **artık UserCreationForm'dan inherit ettiğim userform'u kullanıyorum**
 **istek post ile form oluştur, form geçerli ise kaydet**    
     if request.method == 'POST':
         # form = UserCreationForm(request.POST)
@@ -175,12 +178,7 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            
-            # username = form.cleaned_data.get("username")
-            # password = form.cleaned_data.get("password2")
-            # user = authenticate(username=username, password=password)
-            # login(request, user)
-            
+ **burada kullanıcı register olduğunda login de oluyor**           
             return redirect('home')
  **formu html'ye context ile gönderiyorum**           
     context = {
@@ -212,5 +210,159 @@ def register(request):
 </div>
 {% endblock content %}
 
-11. djangonun hazır formu üzerinde düzenleme yapmak için **users/templates/users/forms.py** oluşturuyorum
+11. djangonun hazır formu üzerinde düzenleme yapmak için **users/templates/users/forms.py** oluşturuyorum. 
 
+**forms.py**
+from django.contrib.auth.forms import UserCreationForm, UsernameField, AuthenticationForm
+from django.contrib.auth.models import User
+from django import forms
+from django.contrib.auth import password_validation
+
+**usercreationform'dan inherit ederek bir userform oluşturuyorum.**
+
+class UserForm(UserCreationForm):
+    
+    # class Meta:
+    #     model = User
+    #     fields = ('username', 'email', 'password1', 'password2')
+    
+    username = UsernameField(
+        label=(""),
+        widget=forms.TextInput(attrs={"autofocus": True,'class' : "rounded border border-warning form-control shadow-lg m-2", "placeHolder" :"username"})
+        )
+**autofocus ile imleç otomatik olarak üzerinde bulunuyor. class'tan da css özelliği veriyorum**
+    
+    password1 = forms.CharField(
+        label=(""),
+        widget=forms.PasswordInput(attrs={'class' : "rounded border border-warning form-control shadow-lg m-2", "placeHolder" :"password"}),
+        help_text=password_validation.password_validators_help_text_html(),
+    )
+    
+    password2 = forms.CharField(
+        label=(""),
+        widget=forms.PasswordInput(attrs={'class' : "rounded border border-warning form-control shadow-lg m-2", "placeHolder" :"Password confirmation"}),
+        help_text=("* Enter the same password as before, for verification."),
+    )
+**REGISTER FORM İLE İLGİLİ AÇIKLAMA**
+3 farklı yöntemle yaptım:
+Birincisinde direkt djangonu sbize sunduğu usercreationform ile yaptım.
+İkincisinde, sercreationform'dan inherit ederek serializer gibi basitçe class meta altındaki başlıklarla gerçekleştirdim.
+Sonuncuda ise usercreationform'dan inherit ederek detaylı şekilde formların fieldlarını kendim belirleyerek set etmiş oldum.
+
+12. **login** işlemine geçiyorum
+**views.py**
+from .forms import UserForm, LoginForm
+from django.contrib.auth import login, logout, authenticate
+from django.contrib import messages
+
+
+def user_login(request):
+    form = LoginForm()
+    
+    if request.method == 'POST':
+        form = LoginForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            messages.success(request, 'You are now logged in') **burada flash şeklinde msj veriyor**
+            return redirect('home')
+        
+    context = {
+        "form": form
+    }
+    return render(request,'users/login.html', context)
+
+**users/templates/users/login.html**
+{% extends 'pizzas/base.html' %}
+
+
+{% block content %}
+
+<div class="col-lg-2 mx-auto p-0 shadow mt-5 ">
+
+    <div class="alert alert-warning text-center">
+        <h2>Login</h2>
+    </div>
+
+    <div class="p-4 d-flex align-items-center ">
+        
+        <form action="" method="POST">
+            {% csrf_token%} 
+            {{ form }}
+            <hr>
+            <input type="submit" value="LOGIN" class="btn btn-success">
+        </form>
+
+    </div>
+</div>
+
+{% endblock content %}
+
+**forms.py**
+from django.contrib.auth.forms import UserCreationForm, UsernameField, AuthenticationForm
+
+class LoginForm(AuthenticationForm):
+    
+    username = UsernameField(widget=forms.TextInput(attrs={"autofocus": True, 'class' : "rounded border border-warning form-control shadow-lg m-2", "placeHolder" :"username"}))
+    password = forms.CharField(
+        label=("Password"),
+        widget=forms.PasswordInput(attrs={'class' : "rounded border border-warning form-control shadow-lg m-2", "placeHolder" :"password"}),
+    )
+
+**urls.py**
+yukarıda yazıldı
+
+13. **LOGOUT**
+Burada bir logout template'ine ihtiyacım yok. direkt view yazacağım. Djangonun logout fonksiyonu var, bu beni logout edip home sayfasına yönlendirecek.
+
+**views.py**
+from django.contrib import messages
+
+def user_logout(request):
+    logout(request)
+    messages.warning(request,'logout succesfully') **burada flash olarak mesaj veriyor**
+    return redirect('home')
+
+**urls.py**
+yukarıda yazıldı
+
+14. **Home sayfasına background image ekliyorum**
+home.html yukarıdaydı
+
+**style.css'de**
+
+.homeImage {
+    background-image: url('../images/nadiasgarden.jpg');
+    height: calc(100vh - 106px);
+    background-size: cover;
+    background-position: center;
+}
+
+15. **login ve logout olduğunda flash şeklinde mesajlar veriyor**
+kodlarını yukarıda yazdım, **style.css'de** de mesajların şeklini düzenledim:
+
+#warning {
+    margin-top: 5px;
+    background-color: lightcoral;
+    color: aliceblue;
+    margin: auto;
+    height: 40px;
+    text-align: center;
+}
+
+#success {
+    margin-top: 5px;
+    background-color: darkseagreen ;
+    color:rgb(231, 200, 158);
+    margin: auto;
+    height: 40px;
+    text-align: center;
+}
+**mesajlar otomatik olarak belirli bir süre sonra kaybolsun istiyorum, bunu da JS ile yapıyorum.**
+
+**static/js**
+let element = document.querySelector('.message');
+
+setTimeout(function () {
+  element.style.display = 'none';
+}, 3000);
