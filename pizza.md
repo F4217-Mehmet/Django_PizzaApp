@@ -101,7 +101,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 **base_dir içine static isimli klasör açıp, static file'larımı bunun altına eklyeceğim. Static içinde de css, images ve js klasörleri oluşturdum. Django ararken buraya bakacak**
-**yine ihtiyaç olursa base_dir altındaki media klasörünün altına media file'larını ekleyebiliriz**
+**yine image yüklediğimde kendisi base_dir altında media klasörün oluşturucak ve altına media file'ları eklenecek**
 
 7. css klasörü içine style.css file'ı oluşturuyorum. Burada yazacağım css'i ilgili html template'inin görmesi için template'te küçük ayar yapmam gerekiyor.
 Base.html'nin css'leri okuması için burada link vermem gerekiyor.
@@ -395,13 +395,16 @@ class Pizza(models.Model):
 **bir pizzada birden çok topping olabilir, aynı zamanda bir topping birden çok pizzada seçilebilir, (manytomany)**
     toppings = models.ManyToManyField(Topping) 
     image = models.ImageField(upload_to='pizza_pics', blank=True, null=True)
+**settings.py'daki media ayarları doğrultusunda base dir'de media klasörü açtı ve sonra altına yukarıda belirttiğim gibi pizza pics oluşturdu ve altına pizza imageleri ekledi**
+
+**Önemli not!! Gerçek projelerde imageler db'de saklanmaz, cloud gibi yerlerde saklanır. O durumlarda da oranın adresi verilir**
     price = models.DecimalField(max_digits=10, decimal_places=2)
     
     def __str__(self):
         return self.name
 
 Size = (
-    ('S', 'Small'),
+    ('S', 'Small'), **sol taraf db'de işlenecek kısım, sağ taraf kullanıcıların göreceği kısım**
     ('M', 'Medium'),
     ('L', 'Large'),
 )
@@ -414,3 +417,271 @@ class Order(models.Model):
     
     def __str__(self):
         return f"{self.user.username} ordered {self.pizza.name}"
+
+
+image ile ilgili işlem yapacaksam **pillow install** etmem gerekiyor.
+**pip install Pillow**
+pip freeze > requirements.txt
+python manage.py makemigrations
+python manage.py migrate
+
+**admin panelde görmek için**
+
+**pizzas/admin.py**
+from django.contrib import admin
+from .models import Topping, Pizza, Order
+
+
+admin.site.register(Topping)
+admin.site.register(Pizza)
+admin.site.register(Order)
+
+**imageler ile ilgili main urls.py'da ayarlarımı yapıyorum**
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    ...,
+    ...,
+    ..., 
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+**manuel olarak admin panelde pizzaları ve orderları oluşturdum**
+
+17. Pizza page'imi oluşturmaya başlıyorum
+
+**pizzas/views.py**
+
+from django.shortcuts import render, redirect
+from .models import Pizza, Order
+
+def home(request):
+    return render(request, 'pizzas/home.html')
+
+
+def pizzas(request):
+    pizzas = Pizza.objects.all() **db'deki pizzaları çekiyorum, yukarıda pizza modelini çektim, import ettim**
+
+**pizzaları db'den çektim, değişkene atayıp context paketinin içine koyup template'e gönderdim**    
+    context = {
+        'pizzas': pizzas 
+    }
+    return render(request, 'pizzas/pizzas.html', context)
+
+**şimdi endpointi oluşturacağım, endpointe istek attığımda pizzas viewini çalıştıracak, o da pizzas.html'yi render edecek!!!** 
+
+**pizzas/urls.py**
+from django.urls import path
+from .views import home, pizzas, order_view, my_orders, update_order_view, delete_order_view
+
+urlpatterns = [
+    ...,
+    path('pizzas/', pizzas, name='pizzas'),
+    path('pizzas/<int:id>', order_view, name='order'),
+
+**render edilecek pizzas.html'i oluşturacağım. pizzas.html ismini kullanmam gerek!!**
+**navbardaki pizzas butonuna tıkladığımda da aşağıda oluşturacağım pizzas.html sayfasına gitmek istiyorum**
+**pizzas/templates/pizzas/navbar.html**
+butonun linkine yeni oluşturduğum **pizzas endpointi** koydum
+
+    <li class="nav-item"><a class="nav-link" href="{% url 'pizzas' %}">Pizzas</a></li>
+
+**pizzas.html**
+
+{% extends 'pizzas/base.html' %}
+
+
+{% block content %}
+
+**flex yapısıyla cardlarımı yerleştiriyorum**
+<div class="d-flex justify-content-around flex-wrap mt-5">
+
+**birden çok pizza var, for döngüsüyle listeliyorum**
+**bootstrap'ten card yapısı alıyorum**
+    {% for pizza in pizzas %} 
+**gölgelendirme yapıyorum**
+    <div class="card m-5shadow" style="max-width: 640px;">
+        <div class="row g-0">
+          <div class="col-md-4">
+**burada pizzaların imagelerinin url'lerini ekliyorum, height'a 100 vererek cardları tam oturttum,**
+            <img src="{{pizza.image.url}}" class="img-fluid rounded-start"  style="height: 100%;"  alt="...">
+          </div>
+          <div class="col-md-8">
+            <div class="card-body">
+              <h5 class="card-title">{{pizza.name}}</h5>
+              <p class="card-text">
+                <ul>
+                    <li>
+**pizza toppings ayrı bir queryset olduğu için pizza.name, pizza.price gibi ulaşamıyorum**
+                        {{pizza.toppings.all |join:", "}}
+                    </li>
+                    <li>
+                      <strong> {{pizza.price}} $</strong> 
+                    </li>
+            </ul>
+             </p>
+**login olmamış kullanıcıya order butonu göstermek istemiyorum**
+             {% if user.is_authenticated %}
+             <p class="card-text"><a href="{% url 'order' pizza.id %}"><button class=" btn btn-warning ms-1">Order</button></a></p>
+             {% endif %}
+                
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+</div>
+{% endblock content %}
+
+18. Butona tıklayınca beni yönlendireceği **order sayfasını** oluşturuyorum
+
+**pizzas/views.py**
+**buraya gelen isteğin request ve id ile birlikte gelmesi lazım**
+
+from django.shotcuts import ..., redirect
+from .forms import PizzaForm
+
+def order_view(request, id):
+    pizza = Pizza.objects.get(id=id)
+    form = PizzaForm(request.POST or None)
+    if request.method == 'POST':
+        if form.is_valid():
+            order = form.save(commit=False)
+**!!!normalde order=form.save dediysem order modelinin formunu order tablosunda db'ye kaydetmesi gerekir. Ancak commit=false deyince order'ı direkt db'ye kaydetmiyor, create edilmiş gibi yakalayıp değişkene atabiliyorum, db'ye kaydetmeden önce değişiklikler yapıp db'ye öyle kaydedebiliyorum**
+            order.pizza = pizza
+            order.user = request.user
+            order.save()
+            return redirect('my_orders') **my_orders sayfasına gönderecek**            
+    
+    context = {
+        'pizza': pizza,
+        'form': form
+    }
+    return render(request, 'pizzas/order.html', context)
+
+**pizzas/urls.py**
+pizza orderı bir endpointe bağlıyorum. bunun url'i dinamik olacak, hangi pizzaya tıklanırsa o gelecek.
+
+from .views import ..., ..., order_view, my_orders, update_order_view, delete_order_view
+
+urlpatterns = [
+    ...,
+    ...,
+    path('pizzas/<int:id>', order_view, name='order')
+
+**pizzas/templates/pizzas/order.html**
+
+{% extends 'pizzas/base.html' %}
+
+{% block content %}
+<div class="col-lg-3 mx-auto d-flex justify-content-center align-items-center mt-5">
+
+**bootstrapten card yapısını buraya yerleştirdim**
+    <div class="card" style="width: 100%;">
+        <img src="{{pizza.image.url}}" class="card-img-top" alt="...">
+        <div class="card-body">
+          <h5 class="card-title">{{pizza.name}}</h5>
+          <p class="card-text">
+            <ul>
+                <li>
+                    {{pizza.toppings.all |join:", "}}
+                </li>
+                <li>
+                  <strong> {{pizza.price}} $</strong> 
+                </li>
+        </ul>
+         </p>
+         <div>
+            <form action="" method="POST">
+                {% csrf_token %}
+                {{form}}
+                <br>
+                <input  class="btn btn-primary" type="submit" value="Order">
+            </form>
+         </div>
+        </div>
+      </div>
+
+    </div>
+{% endblock content %}
+
+19. order sayfasında size, adet vb seçeceği bir **form** ekleyeceğim
+**pizzas/forms.py** oluşturuyorum
+
+from django import forms
+from .models import Order
+
+
+class PizzaForm(forms.ModelForm):
+    
+    class Meta:
+        model = Order
+**order modelinden sadece size ve order datasını alacağım, onun için forma sadece bunları koydum**
+        fields = (
+            'size',
+            'quantity',
+        )
+        widgets = {
+            'size':forms.RadioSelect,
+            'quantity': forms.TextInput(attrs={'class' : "rounded border border-warning form-control", "style" : "width: 50%;"}),          
+        }
+
+20. Kullanıcının kendi orderlarını göreceği bir sayfa yapıyorum.
+
+**pizzas/views.py**
+(kim login ise o userın orderlarını göstersin, yani userı şu an isteği atan usera eşit olan)
+
+def my_orders(request):
+    orders = Order.objects.filter(user=request.user)
+    context = {
+        'orders': orders
+    }
+    return render(request, 'pizzas/my_orders.html', context)
+
+**urls.py**
+
+from .views import home, pizzas, order_view, my_orders,
+
+urlpatterns = [
+    ...,
+    path('my_orders/', my_orders, name='my_orders'),
+]
+
+**navbar**
+(user authenticate ise görsün istediğimden buranın altına ekledim)
+
+  {% if user.is_authenticated %}
+                    <li class="nav-item"><a class="nav-link" href="{% url 'my_orders' %}">My Orders</a></li>
+
+**pizzas/templates/pizzas/my_orders.html**
+
+{% extends 'pizzas/base.html' %}
+
+
+{% block content %}
+<div class="d-flex flex-column justify-content-center mx-auto mt-5 col-md-6">
+    <div class="alert alert-warning text-center p-1"> <h1>{{user.username | upper}}'s Orders</h1></div>
+    {% for order in orders  %}
+    <div class="card m-2 shadow p-2" >
+        <div class="row g-0 d-flex justify-content-between">
+            <div class="col-md-1 d-flex align-items-center">
+                <img src="{{order.pizza.image.url}}"  style=" border-radius: 50%; width: 60px; height: 60px"  alt="...">
+            </div> 
+            <div class="col-md-5 d-flex justify-content-start flex-fill">
+                <div class="card-body">
+                    <p class="card-title"><strong>Pizza:</strong> {{order.pizza}} 🍕  <strong>Size:</strong> {{order.size}} 🍕 <strong>X :</strong> {{order.quantity}} </p>              
+                </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-center rounded">
+            <a href="{% url 'update_orders' order.id %}"> <button class=" btn btn-warning me-2">Update</button></a>
+             <a href="{% url 'delete_orders' order.id %}"><button class=" btn btn-danger me-2">Delete</button></a>
+          </div> 
+        </div>
+      </div>
+      {% endfor %}
+</div>
+
+
+{% endblock content %}
