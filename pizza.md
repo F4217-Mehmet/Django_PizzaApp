@@ -685,3 +685,98 @@ urlpatterns = [
 
 
 {% endblock content %}
+
+21. order update
+
+**pizzas/views.py**
+
+def update_order_view(request, id):
+    order = Order.objects.get(id=id)
+    pizza = Pizza.objects.get(id=order.pizza.id)
+    form = PizzaForm(instance=order) **dolu form gelecek**
+    if request.method == 'POST':
+        form = PizzaForm(request.POST, instance=order) **instance=order yazmasaydım yeni sipariş create ederdi, şimdi mevcut orderı update ediyor.**
+        if form.is_valid():
+            order.save()
+            return redirect('my_orders')
+    context = {
+        'order': order,
+        'pizza': pizza,
+        "form" : form
+    }
+    return render(request, 'pizzas/update_order.html', context)
+
+**pizzas.urls.py**
+
+from .views import ..., ..., ..., ..., update_order_view
+
+urlpatterns = [
+    ...    
+    ...,
+    ...,
+    path('update_orders/<int:id>', update_order_view, name='update_orders'),
+]
+
+**pizzas/templates/pizzas/update_order.html**
+
+{% extends 'pizzas/base.html' %}
+
+
+
+{% block content %}
+<div class="col-lg-3 mx-auto d-flex justify-content-center align-items-center mt-5">
+
+    <div class="card" style="width: 100%;">
+        <img src="{{pizza.image.url}}" class="card-img-top" alt="...">
+        <div class="card-body">
+          <h5 class="card-title">{{pizza.name}}</h5>
+          <p class="card-text">
+            <ul>
+                <li>
+                    {{pizza.toppings.all |join:", "}}
+                </li>
+                <li>
+                  <strong> {{pizza.price}} $</strong> 
+                </li>
+        </ul>
+         </p>
+         <div>
+            <form action="" method="POST">
+                {% csrf_token %}
+                {{form}}
+                <br>
+                <input  class="btn btn-primary" type="submit" value="Order">
+            </form>
+         </div>
+        </div>
+      </div>
+
+    </div>
+{% endblock content %}
+
+**pizzas/templates/pizzas/my_orders**
+update'e tıkladığımda gitmesi için my_orders'a;
+
+  <a href="{% url 'update_orders' order.id %}"> <button class=" btn btn-warning me-2">Update</button></a>
+  ekliyorum
+
+22. order delete
+
+**views.py**
+
+def delete_order_view(request, id):
+    order = Order.objects.get(id=id)
+    order.delete()
+    return redirect('my_orders')
+
+**urls.py**
+
+from .views import ..., ..., ..., ..., ..., delete_order_view
+urlpatterns = [
+path('delete_orders/<int:id>', delete_order_view, name='delete_orders')
+]
+
+**pizzas/templates/pizzas/my_orders**
+burada her bir cardın delete butonuna linki yerleştiriyorum;
+    button></a>
+    <a href="{% url 'delete_orders' order.id %}"><button class=" btn btn-danger me-2">Delete</button></a>
